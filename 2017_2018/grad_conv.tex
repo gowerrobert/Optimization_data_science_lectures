@@ -1,0 +1,409 @@
+\documentclass[11pt]{article}
+\usepackage{colordvi,epsfig,amsmath,amssymb}
+\usepackage[table]{xcolor}   % for highlighting table cells
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{hyperref}
+\usepackage{verbatim,tikz}
+\usepackage{caption,subcaption}   % Required for side-by-side figures with individual captions
+\usepackage[firstinits=true,doi=false,isbn=false,url=false,backend=bibtex]{biblatex}	
+\newcommand{\Ref}[1]{../../../../jabref/#1}
+\bibliography{\Ref{jabref_library}}
+
+\graphicspath{{figuras/}}  % Path to figures folder
+\setlength{\oddsidemargin}{-0.5cm}
+\setlength{\evensidemargin}{-0.5cm}
+\setlength{\textheight}{23.0cm}
+\setlength{\textwidth}{16.4cm}
+\setlength{\topmargin}{-1.0cm}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\K}{\mathcal{K}}
+\newcommand{\cqd}{\hfill\rule{2mm}{2mm}} % Full little box
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+      \ifdim\lastskip<1.5em \hskip-\lastskip
+      \hskip1.5em plus0em minus0.5em \fi \nobreak
+      \vrule height0.75em width0.5em depth0.25em\fi}
+
+\newcommand{\eqdef}{\overset{\text{def}}{=}} 
+\newcommand{\diag}{\mbox{diag}} 
+
+\newcommand{\EE}[2]{\mathbf{E}_{#1}\left[#2\right] }
+\newcommand{\E}[1]{\mathbf{E}\left[#1\right] } 
+\newcommand{\Prb}[1]{\mathbf{P}\left[#1\right] }
+\newcommand{\norm}[1]{\lVert#1\rVert}
+\newcommand{\dotprod}[1]{\left< #1\right>}
+\newcommand{\Tr}[1]{\mbox{Tr}\left( #1\right)}
+\providecommand{\Null}[1]{\mathbf{Null}\left( #1\right)}
+\providecommand{\Rank}[1]{\mathbf{Rank}\left( #1\right)}
+\providecommand{\Range}[1]{\mathbf{Range}\left( #1\right)}
+\def\proof{{\noindent{\bf Proof: }}}
+\usepackage[colorinlistoftodos,bordercolor=orange,backgroundcolor=orange!20,linecolor=orange,textsize=scriptsize]{todonotes}
+\newcommand{\rob}[1]{\todo[inline]{\textbf{Robert: }#1}}
+\newcommand{\fran}[1]{\todo[inline]{\textbf{Francis: }#1}}
+\newcommand{\pet}[1]{\todo[inline]{\textbf{Peter: }#1}}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{corollary}{Corollary}[section]
+\newtheorem{assumption}{Assumption}[section]
+\newtheorem{note}{Remark}[section]
+\newtheorem{definition}{Definition}[section]
+\title{Convergence Theorems for Gradient Descent}
+\author{Robert M. Gower.}
+
+%\renewcommand{\baselinestretch}{2.0}
+\linespread{1.2}
+
+
+\begin{document}
+\maketitle
+\begin{abstract}Here you will find a growing collection of proofs of the convergence of gradient and stochastic gradient descent type method on convex, strongly convex and/or smooth functions. Important disclaimer: Theses notes do not compare to a good book or well prepared lecture notes. You should only read these notes if you have sat through my lecture on the subject and would like to see detailed notes based on my lecture as a reminder. Under any other circumstances, I highly recommend reading instead the first few chapters of the books~\cite{NesterovBook} and~\cite{Boyd2010}.
+\end{abstract}
+%TODO:
+%\rob{Include corollary of Theorem~\ref{theo:convsgdfstar} showing that when $f(w^*) = f(w_x^*,x) \quad \forall x$ then SGD converges linearly. Think of any problems where $\EE{x \sim \mathcal{D}}{f(w_x^*,x)} = f(w^*)?$}
+%\rob{Correct the ``shrinking stepsize'' theorem.}
+\section{Assumptions and Lemmas}
+
+\subsection{Convexity}
+
+We say that $f$ is convex if
+\begin{equation} \label{eq:convoriginal}
+f(tx+(1-t)y) \leq tf(x) + (1-t)f(y), \quad \forall x,y \in \R^d,\, t \in [0,\,1].
+\end{equation}
+
+If $f$ is differentiable and convex then every tangent line to the graph of $f$ lower bounds the function values, that is
+\begin{equation}\label{eq:conv}
+f(y) \geq f(x) + \dotprod{\nabla f(x), y-x}, \quad \forall x,y \in \R^d.
+\end{equation}
+We can deduce~\eqref{eq:conv} from~\eqref{eq:convoriginal} by dividing and taking the limit on one dimensional function $g(t)$ then extending by setting $g(t) = f(tx+(1-t)y).$
+
+ 
+If $f$ is twice differentiable, then taking a directional derivative in the $v$ direction on the point $x$ in~\eqref{eq:conv} gives
+\begin{equation}\label{eq:convproof}
+0 \geq \dotprod{\nabla f(x),v} + \dotprod{\nabla^2 f(x)v, y-x}-\dotprod{\nabla f(x),v} = \dotprod{\nabla^2 f(x)v, y-x}, \quad \forall x,y,v \in \R^d.
+\end{equation}
+Setting $y =x-v $ then gives
+\begin{equation}\label{eq:convhess}
+0 \leq \dotprod{\nabla^2 f(x)v, v}, \quad \forall x,v \in \R^d.
+\end{equation}
+The above is equivalent to saying the $\nabla^2 f(x) \succeq 0$ is positive semi-definite for every $x \in \R^d.$
+
+
+
+\subsection{Smoothness}
+A differential function $f$ is said to be $L$--smooth if its gradients are Lipschitz continuous, that is
+\begin{eqnarray}\label{eq:smoothness}
+\norm{\nabla f(x)- \nabla f(y)} &\leq & L \norm{x-y}.
+ \end{eqnarray}
+If $f$ is twice differentiable then we have, by using first order expansion
+\[ \nabla f(x) - \nabla f(x+\alpha d) = \int_{t=0}^\alpha \nabla^2 f(x + td)d,\]
+followed by taking the norm gives
+\[\norm{\int_{t=0}^\alpha \nabla^2 f(x + td)d}_2 \leq L  \alpha \norm{d}_2.\]
+Dividing by $\alpha$  
+\[\frac{\norm{\int_{t=0}^\alpha \nabla^2 f(x + td)d}_2}{\alpha} \leq L \norm{d}_2,\]
+then dividing through by $\norm{d}$ with $d \neq 0$ and taking the limit as $\alpha \rightarrow 0$ we have that
+\[\frac{\norm{\int_{t=0}^\alpha \nabla^2 f(x + td)d}_2}{\alpha\norm{d}} =   \frac{\norm{\alpha \nabla^2 f(x)d}_2}{\alpha\norm{d}}+ O(\alpha) 
+\underset{\alpha \rightarrow 0}{=} \frac{\norm{\alpha \nabla^2 f(x)d}_2}{{d}} \leq L, \quad \forall d \neq 0 \in \R^n\]
+Taking the supremum  over $d \neq 0 \in \R^d$ in the above gives
+\begin{eqnarray}\label{eq:smoothnesshess}
+\nabla ^2 f(x) &\preceq & L I.
+ \end{eqnarray}
+ Furthermore, using the Taylor expansion of $f(x)$ and the uniform bound over Hessian we have that
+\begin{eqnarray}\label{eq:smoothnessfunc}
+ f(y) &\leq & f(x) + \langle \nabla f(x), y-x \rangle + \frac{L}{2} \norm{y-x}_2^2
+ %\\ \norm{\nabla f(x)- \nabla f(y)} &\leq & L \norm{x-y}.
+ \end{eqnarray}
+
+
+Some direct consequences of the smoothness are given in the following lemma.
+\begin{lemma} If $f$ is $L$--smooth then
+\begin{equation}\label{eq:gradnormupx}
+f(x - \tfrac{1}{L} \nabla f(x))-f(x) \leq  -  \frac{1}{2L}\norm{\nabla f(x)}_2^2, 
+\end{equation}
+and
+\begin{equation}\label{eq:inversePL}
+ f(x^*) - f(x) \leq -\frac{1}{2L} \norm{\nabla f(x)}_2^2,
+\end{equation}
+hold for all $x \in \R^d$.
+\end{lemma}
+\begin{proof}
+The first inequality~\eqref{eq:gradnormupx} follows by inserting $y = x - \tfrac{1}{L} \nabla f(x)$ in the definition of smoothness~\eqref{eq:smoothness} since
+\begin{eqnarray}
+ f(x - \tfrac{1}{L} \nabla f(x)) &\leq & f(x) -  \tfrac{1}{L}\langle \nabla f(x),   \nabla f(x) \rangle + \frac{L}{2} \norm{ \tfrac{1}{L} \nabla f(x)}_2^2\nonumber\\
+ & =& f(x) -  \frac{1}{2L}\norm{\nabla f(x)}_2^2.\nonumber
+ \end{eqnarray}
+Furthermore, by using~\eqref{eq:gradnormupx} combined with   $f(x^*) \leq f(y)\quad \forall y$, we get~\eqref{eq:inversePL}.
+Indeed since
+ \begin{equation}\label{eq:gradnormup}
+f(x^*) -f(x) \leq f(x - \tfrac{1}{L} \nabla f(x))-f(x) \leq  -  \frac{1}{2L}\norm{\nabla f(x)}_2^2. \qed
+\end{equation}
+\end{proof}
+\subsection{Smooth and Convex}
+There are many problems in optimization where the function is both smooth and convex. Furthermore, such a combination results in some interesting consequences and Lemmas. Lemmas that we will then use to prove convergence of the Gradient method.
+\begin{lemma}\label{lem:convandsmooth}
+If $f(x)$ is convex and $L$--smooth then
+\begin{eqnarray}
+f(y) - f(x) & \leq &\dotprod{\nabla f(y),y-x}- \frac{1}{2L}\norm{\nabla f(y)-\nabla f(x)}_2^2.\label{eq:convandsmooth}\\
+\dotprod{\nabla f(y)-\nabla f(x),y-x} &\geq & \frac{1}{L} \norm{\nabla f(x) - \nabla f(y)} \quad (\mbox{Co-coercivity}).\label{eq:coco}
+\end{eqnarray}
+\end{lemma}
+\begin{proof}
+To prove~\eqref{eq:convandsmooth},
+let $z = x - \frac{1}{L}(\nabla f(x) - \nabla f(y))$. It follows that
+\begin{eqnarray*}
+f(y) -f(x) & = & f(y) -f(z)+f(z) - f(x)\\ &\overset{\eqref{eq:conv}+\eqref{eq:smoothness} } \leq &   
+\dotprod{\nabla f(y), y-z} + \dotprod{\nabla f(x), z-x} +\frac{L}{2}\norm{z-x}_2^2 \\
+& \overset{\mbox{subs. }z}{=}&
+\dotprod{\nabla f(y), y-x+x-z} + \dotprod{\nabla f(x), z-x}+\frac{1}{2L}\norm{\nabla f(x) - \nabla f(y)}_2^2\\
+& =& \dotprod{\nabla f(y), y-x} + \dotprod{\nabla f(y)-\nabla f(x), x-z}+\frac{1}{2L}\norm{\nabla f(x) - \nabla f(y)}_2^2\\
+& \overset{\mbox{subs. }z}{=}& \dotprod{\nabla f(y), y-x} -\frac{1}{2L}\norm{\nabla f(x) - \nabla f(y)}_2^2.
+\end{eqnarray*}
+Finally~\eqref{eq:coco} follows from applying~\eqref{eq:convandsmooth} once
+\[f(y) - f(x)  \leq \dotprod{\nabla f(y),y-x}- \frac{1}{2L}\norm{\nabla f(y)-\nabla f(x)}_2^2,\]
+then interchanging the roles of $x$ and $y$ to get
+\[f(x) - f(y)  \leq \dotprod{\nabla f(x),x-y}- \frac{1}{2L}\norm{\nabla f(y)-\nabla f(x)}_2^2.\]
+Finally adding together the two above inequalities gives
+\[0 \leq \dotprod{\nabla f(y)-\nabla f(x),y-x}- \frac{1}{L}\norm{\nabla f(y)-\nabla f(x)}_2^2.\qed\]
+\end{proof}
+\subsection{Strong convexity}
+
+
+We can ``strengthen'' the notion of convexity  by defining $\mu$--strong convexity, that is
+\begin{equation} \label{eq:strconv}
+ f(y) \geq f(x) + \dotprod{\nabla f(x), y-x} + \frac{\mu}{2} \norm{y-x}_2^2, \quad \forall x,y \in \R^d.
+\end{equation}
+ Minimizing both sides of~\eqref{eq:strconv} in $y$ proves the following lemma
+\begin{lemma} If $f$ is $\mu$--strongly convex then it also satisfies the \emph{Polyak- Lojasiewicz} condition, that is 
+\begin{equation}
+\norm{\nabla f(x)}_2^2 \geq 2 \mu (f(x) -f(x^*). \label{eq:gradnormlow}
+\end{equation}
+\end{lemma}
+Rearranging~\eqref{eq:strconv} we have that
+\begin{eqnarray}
+\dotprod{\nabla f(x), x- y}  &\geq & f(x) -f(y) +\frac{\mu}{2} \norm{y - x}_2^2, \label{eq:strconv2}\end{eqnarray}
+
+Rearranging~\eqref{eq:strconv} and substituting $y= x^*$ we have that
+\begin{eqnarray}
+\dotprod{\nabla f(x), x- x^*}  &\geq & f(x) -f(x^*) +\frac{\mu}{2} \norm{x^* - x}_2^2 
+\,\,\geq\,\, \frac{\mu}{2} \norm{x^* - x}_2^2, \label{eq:strconv2w}\end{eqnarray}
+where we used that $f(x)-f(x^*) \geq 0.$ The inequality~\eqref{eq:strconv2w} is of such importance in optimization that is merits its own name.
+
+
+
+\section{Gradient Descent}
+Consider the problem 
+\begin{equation}
+x^* = \arg\min_{x \in \R^d} f(x),
+\end{equation}
+and  the following gradient method
+\begin{eqnarray}
+x^{t+1} = x^t - \frac{1}{L}\nabla f(x^t), \label{eq:grad}
+\end{eqnarray}
+where $f$ is $L$--smooth.
+We will now prove that the iterates~\eqref{eq:grad} converge. In Theorem~\ref{theo:convgrad} we will prove sublinear convergence under the assumption that $f$ is convex. In Theorem~\ref{theo:gradstrconv} we will prove linear convergence (a stronger form of convergence) under the assumption that $f$ is $\mu$--strongly convex.
+\subsection{Convergence for convex and smooth functions}
+
+\begin{theorem}\label{theo:convgrad}
+Let $f$ be convex and $L$--smooth and let  $x^t$ for $t=1,\ldots, n$ be the sequence of iterates generated by the gradient method~\eqref{eq:grad}. It follows that
+\begin{equation}
+f(x^n)-f(x^*) \leq \frac{2L\norm{x^1-x^*} ^2}{n-1}.
+\end{equation}
+\end{theorem}
+\begin{proof}
+Let $f$ be convex and $L$--smooth. It follows that
+\begin{eqnarray*}
+\norm{x^{t+1}-x^*}_2^2 &=& \norm{x^t -x^*- \tfrac{1}{L} \nabla f(x^t)}_2^2 \\
+& =& \norm{x^{t}-x^*}_2^2-2\tfrac{1}{L} \dotprod{x^t -x^*, \nabla f(x^t)} + \tfrac{1}{L^2}\norm{\nabla f(x^t)}_2^2\\
+  & \overset{\eqref{eq:coco}}{\leq} & \norm{x^{t}-x^*}_2^2-\tfrac{1}{L^2}\dotprod{x^t -x^*, \nabla f(x^t)}.\label{eq:decressse}
+\end{eqnarray*}
+Thus if $\alpha \leq \frac{2}{L}$ then $\norm{x^{t}-x^*}_2^2$ is a decreasing sequence in $t.$ Calling upon~\eqref{eq:gradnormupx} and subtracting $f(x^*)$ from both sides gives
+\begin{eqnarray}
+f(x^{t+1}) -f(x^*) & \leq &  f(x^t)-f(x^*)-  \frac{1}{2L}\norm{\nabla f(x^t)}_2^2.\label{eq:ao9822nhf}
+\end{eqnarray}
+Applying convexity we have that
+\begin{eqnarray}
+ f(x^t)-f(x^*) & \leq & \dotprod{\nabla f(x^t), x^t-x^*} \nonumber\\
+ & \leq & \norm{\nabla f(x^t)}_2 \norm{x^t-x^*} \overset{\eqref{eq:decressse}}{\leq} \norm{\nabla f(x^t)}_2 \norm{x^1-x^*} .\label{eq:pmw0u2nj}
+\end{eqnarray}
+Isolating $\norm{\nabla f(x^t)}_2$ in the above and 
+inserting in~\eqref{eq:ao9822nhf} gives
+\begin{eqnarray}
+f(x^{t+1}) -f(x^*) & \overset{\eqref{eq:ao9822nhf}+\eqref{eq:pmw0u2nj}}{\leq} &  f(x^t)-f(x^*)-  \underbrace{\frac{1}{2L}\frac{1}{\norm{x^1-x^*} ^2}}_{\beta} (f(x^t)-f(x^*))^2
+%\nonumber\\
+%& =& (f(x^t)-f(x^*))\left( 1- \frac{1}{2L}\frac{f(x^t)-f(x^*)}{\norm{x^1-x^*}^2}\right)
+\label{eq:mimsj99sdsd}
+\end{eqnarray}
+Let $\delta_t = f(x^t)-f(x^*).$ Manipulating~\eqref{eq:mimsj99sdsd} we have that
+\[\delta_{t+1} \leq \delta_t - \beta \delta_t^2 \overset{\times \tfrac{1}{\delta_t \delta_{t+1}}}{\Leftrightarrow }
+\beta \frac{\delta_t}{\delta_{t+1}} \leq \frac{1}{\delta_{t+1}} -\frac{1}{\delta_{t}}
+ \Leftrightarrow 
+\beta\leq \frac{1}{\delta_{t+1}} -\frac{1}{\delta_{t}}. 
+ \] 
+ Summing up both sides over $t= 1, \ldots, n-1$ and using telescopic cancellation we have that
+\[(n-1) \beta \leq \frac{1}{\delta_n} - \frac{1}{\delta_{1}} \leq \frac{1}{\delta_n}.\qed\]
+\end{proof}
+\subsection{Convergence for strongly convex (PL) and smooth convex functions}
+Now we prove some bounds that hold for strongly convex and smooth functions. In fact, if you observe, we will only use PL inequality~\eqref{eq:gradnormlow} to establish the convergence result. Assuming a function satisfies the PL condition is a strictly weaker assumption then assuming strong convexity~\cite{KarimiNS16}. This proof is taken from~\cite{KarimiNS16}.
+
+\begin{theorem}\label{theo:gradstrconv}
+Let $f$ be $L$--smooth and $\mu$--strongly convex.
+From a given $x_0 \in \R^d$ and $\tfrac{1}{L} \geq \alpha>0$, the iterates
+\begin{equation}\label{eq:grad} x^{t+1}=x^t - \alpha \nabla f(x^t),\end{equation}
+converge according to
+\begin{equation}
+\norm{x^{t+1}-x^*}_2^2 \leq (1-\alpha \mu)^{t+1} \norm{x^0 -x^*}_2^2.
+\end{equation}
+In particular, or $\alpha = \tfrac{1}{L}$ the iterates~\eqref{eq:grad} enjoy a linear convergence with a rate of $\mu/L.$
+\end{theorem}
+\begin{proof}
+From~\eqref{eq:grad} we  have that
+\begin{eqnarray}
+\norm{x^{t+1}-x^*}_2^2 & =& \norm{x^{t}-x^*- \alpha \nabla f(x^t)}_2^2 \nonumber\\
+& =& \norm{x^{t}-x^*}_2^2 - 2\alpha \dotprod{\nabla f(x^t),x^t-x^*} + \alpha^2 \norm{\nabla f(x^t)}_2^2 \nonumber \\
+& \overset{\eqref{eq:strconv2}}{\leq} &(1-\alpha \mu)\norm{x^{t}-x^*}_2^2 - 2\alpha (f(x^t) -f(x^*)) + \alpha^2 \norm{\nabla f(x^t)}_2^2 \nonumber \\
+& \overset{\eqref{eq:gradnormup}}{\leq} & (1-\alpha \mu)\norm{x^{t}-x^*}_2^2 - 2\alpha (f(x^t) -f(x^*)) + 2\alpha^2 L (f(x^t) -f(x^*)\nonumber \\
+& =& (1-\alpha \mu)\norm{x^{t}-x^*}_2^2 - 2\alpha(1-\alpha L) (f(x^t) -f(x^*)).
+\end{eqnarray}
+Since $\tfrac{1}{L} \geq \alpha$ we have that $- 2\alpha(1-\alpha L) $  is negative, and thus can be safely dropped to give
+\[\norm{x^{t+1}-x^*}_2^2  \leq (1-\alpha \mu)\norm{x^{t}-x^*}_2^2. \]
+It now remains to unroll the recurrence.\hfill \qed
+\end{proof}
+\end{document}
+
+\section{Stochastic Gradient Descent}
+Consider the problem 
+\begin{equation}
+w^* = \arg\min_{w \in \R^d} \EE{\cal D}{f(w,x)} \eqdef f(w),
+\end{equation}
+where $x \sim \mathcal{D}.$
+
+\subsection{A Stochastic Smoothness}
+We assume that $f(w,x)$ is $L_x$--smooth 
+\begin{eqnarray}
+ f(z,x) &\leq & f(w,x) + \langle \nabla f(w,x), z-w \rangle + \frac{L_x}{2} \norm{z-w}_2^2.
+ \end{eqnarray}
+Minimizing both sides in $z$ gives
+\begin{equation}\label{eq:gradnormupxstoch}
+ \norm{\nabla f(w,x)}_2^2 \leq   2L_x(f(w,x)-f(w_x^*,x)),
+\end{equation}
+where
+\begin{equation}
+w_x^* \in \arg \min_w f(w,x).
+\end{equation}
+If $w \in \Omega$ is in a compact set, we can use Danskin's Theorem to establish that $\phi(x) = f(w_x^*,x)$ is continuous and differentiable.
+\rob{Does such a minimum exist for all $x$? Need to assume $f(w,x)$ is lower semicontinuous on a compact domain? Or just assume there exists a minimum.}
+
+Taking expectation over $x$ in~\eqref{eq:gradnormupxstoch} gives
+\begin{eqnarray}\label{eq:gradnormupEx}
+ f(z) &\leq & f(w) + \langle \nabla f(w), z-w \rangle + \frac{\E{L_x}}{2} \norm{z-w}_2^2.
+ \end{eqnarray}
+
+\subsection{Convergence with constant stepsize and bounded gradient norm} 
+\begin{theorem} \label{theo:stochgradB}
+
+From a given $w^0 \in \R^d$ and $\tfrac{1}{\mu} > \alpha>0$, consider the iterates
+\begin{equation}\label{eq:stochgrad} w^{t+1}=w^t - \alpha \nabla f(w^t,x^t),\end{equation}
+where $x^t \sim \mathcal{D}$ is sampled i.i.d at each iteration. Assume that $\EE{\cal D}{\norm{\nabla f(w^t,x^t)}_2^2} \leq B^2$ where $B>0$ for all $t.$
+%\footnote{This is a very awkward assumption. In particular assuming that $\EE{\cal D}{\norm{\nabla f(w,x)}_2^2} \leq B^2$ for all $x,w \in \R^d$ is  }
+The iterates satisfy 
+ \begin{eqnarray}
+\E{\norm{w^{t+1}-w^*}_2^2} &\leq & (1-\alpha \mu)^{t+1}\norm{w^{0}-w^*}_2^2+\frac{\alpha }{\mu}B^2.
+\end{eqnarray}
+\end{theorem}
+\begin{proof}
+From~\eqref{eq:stochgrad} we  have that
+\begin{eqnarray}
+\norm{w^{t+1}-w^*}_2^2 & =& \norm{w^{t}-w^*- \alpha \nabla f(w^t,x^t)}_2^2 \nonumber\\
+& =& \norm{w^{t}-w^*}_2^2 - 2\alpha \dotprod{\nabla f(w^t,x^t),w^t-w^*} + \alpha^2 \norm{\nabla f(w^t,x^t)}_2^2. \nonumber
+\end{eqnarray}
+ Taking expectation condition on $w^t$ in the above gives
+ \begin{eqnarray}
+\E{\norm{w^{t+1}-w^*}_2^2 \, | \, w^t} & =& \norm{w^{t}-w^*}_2^2 - 2\alpha \dotprod{\nabla f(w^t),w^t-w^*} + \alpha^2 \EE{\cal D}{\norm{\nabla f(w^t,x^t)}_2^2} \nonumber\\
+& \leq &\norm{w^{t}-w^*}_2^2 - 2\alpha \dotprod{\nabla f(w^t),w^t-w^*} + \alpha^2 B^2 \nonumber \\
+& \overset{\eqref{eq:strconv2w}}{\leq} & 
+(1-\alpha \mu)\norm{w^{t}-w^*}_2^2 + \alpha^2 B^2 \label{eq:neededlater} \\
+& \overset{\text{recurrence}}{\leq} &(1-\alpha \mu)^{t+1}\norm{w^{0}-w^*}_2^2+\sum_{i=0}^t (1-\alpha \mu)^i\alpha^2 B^2 \label{eq:ansu8qn9}.
+\end{eqnarray}
+Since
+\begin{equation}\label{eq:geoseriebnd}
+ \sum_{i=0}^t (1-\alpha \mu)^i\alpha^2 B^2  = \alpha^2 B^2\frac{1-(1-\alpha \mu)^{t+1}}{\alpha \mu} \leq \frac{\alpha^2 B^2}{\alpha \mu} = \frac{\alpha B^2}{\mu},
+\end{equation}
+we have that
+ \begin{eqnarray}
+\E{\norm{w^{t+1}-w^*}_2^2\, | \, w^t} & \overset{\eqref{eq:geoseriebnd}+\eqref{eq:ansu8qn9}}{\leq}& (1-\alpha \mu)^{t+1}\norm{w^{0}-w^*}_2^2+\frac{\alpha B^2}{\mu}.
+\end{eqnarray}
+It now remains to taking expectation over the above.
+\end{proof}
+
+ 
+\subsection{Convergence with constant stepsize and bounded stochastic optimal} 
+\begin{theorem} \label{theo:convsgdfstar}
+From a given $w^0 \in \R^d$ and $\tfrac{1}{L_{\max}} \geq  \alpha>0$, consider the iterates
+\begin{equation}\label{eq:stochgrad2} w^{t+1}=w^t - \alpha \nabla f(w^t,x^t),\end{equation}
+where $x^t \sim \mathcal{D}$ is sampled i.i.d at each iteration. The iterates
+satisfy 
+ \begin{eqnarray}
+\E{\norm{w^{t+1}-w^*}_2^2} &\leq & (1-\alpha \mu)^{t+1}\norm{w^{0}-w^*}_2^2+2\frac{f(w^*)-\EE{x \sim \mathcal{D}}{f(w_x^*,x)}}{\mu}.
+\end{eqnarray}
+Consequently when $\EE{x \sim \mathcal{D}}{f(w_x^*,x)} = f(w^*)$ then the stochastic gradient method with a fixed stepsize $\alpha = \frac{1}{L_{\max}}$ converges linearly at a rate of $\frac{\mu}{L_{\max}}.$
+\end{theorem}
+\begin{proof}
+From~\eqref{eq:stochgrad2} we  have that
+\begin{eqnarray}
+\norm{w^{t+1}-w^*}_2^2 & =& \norm{w^{t}-w^*- \alpha \nabla f(w^t,x^t)}_2^2 \nonumber\\
+& =& \norm{w^{t}-w^*}_2^2 - 2\alpha \dotprod{\nabla f(w^t,x^t),w^t-w^*} + \alpha^2 \norm{\nabla f(w^t,x^t)}_2^2. \nonumber \\
+& \overset{\eqref{eq:gradnormupxstoch}}{ \leq} &\norm{w^{t}-w^*}_2^2 - 2\alpha \dotprod{\nabla f(w^t,x^t),w^t-w^*} + 2\alpha^2 L_{\max}(f(w^t,x^t)-f(w_x^{t*},x^t)) \nonumber \\
+& \overset{\eqref{eq:strconv2w}}{\leq} & (1-\alpha \mu)\norm{w^{t}-w^*}_2^2 - 2\alpha (f(w^t)-f(w^*))+ 2\alpha^2 L_{\max}(f(w^t,x^t)-f(w_x^{t*},x^t))\nonumber \\
+& =& (1-\alpha \mu)\norm{w^{t}-w^*}_2^2 -2\alpha(1 - \alpha L_{\max})(f(w^t)-f(w^*)) + 2\alpha^2 L_{\max}(f(w^*)-f(w_x^{t*},x^t))\nonumber.
+\end{eqnarray}
+Taking expectation conditioned on $w^t$ in the above, and given that $\alpha \leq \frac{1}{L_{\max}}$, we have
+\begin{eqnarray}
+\E{\norm{w^{t+1}-w^*}_2^2\,|\, w^t} & \leq & (1-\alpha \mu)\norm{w^{t}-w^*}_2^2 + 2\alpha^2 L_{\max}(f(w^*)-\EE{x \sim \mathcal{D}}{f(w_x^*,x)})
+\end{eqnarray}
+Let $C = L_{\max}(f(w^*)-\EE{x \sim \mathcal{D}}{f(w_x^*,x)})$. Unrolling the above recurrence gives
+\begin{eqnarray}
+\E{\norm{w^{t+1}-w^*}_2^2\,|\, w^t} & \leq & (1-\alpha \mu)^{t+1}\norm{w^{0}-w^*}_2^2 + 2\alpha^2 C \sum_{i=0}^t(1-\alpha \mu)^i \nonumber \\
+& \leq & (1-\alpha \mu)^{t+1}\norm{w^{0}-w^*}_2^2 +  \frac{2\alpha^2 C}{\alpha \mu}.
+\end{eqnarray}
+It now remains to taking expectation over the above and above that
+\[\frac{\alpha^2 C}{\alpha \mu} \quad = \quad   \frac{\alpha L_{\max}}{\mu}(f(w^*)-\EE{x \sim \mathcal{D}}{f(w_x^*,x)}) \quad\leq\quad  \frac{f(w^*)-\EE{x \sim \mathcal{D}}{f(w_x^*,x)}}{\mu}.  \hfill \qed\]
+\end{proof}
+
+\subsection{Convergence with shrinking stepsize} 
+\begin{theorem}
+Assume that $\EE{\cal D}{\norm{\nabla f(w,x)}_2^2} \leq B^2$ where $B>0.$
+From a given $w^0 \in \R^d$ and $\alpha_t = \frac{1}{t\mu}$ consider the iterates
+\begin{equation}\label{eq:stochgrad2} w^{t+1}=w^t - \alpha_t \nabla f(w^t,x^t),\end{equation}
+where $x^t \sim \mathcal{D}$ is sampled i.i.d at each iteration. The iterates
+satisfy 
+ \begin{eqnarray}
+\E{\norm{w^{t+1}-w^*}_2^2} &\leq & \frac{4 B^2}{t}.
+\end{eqnarray}
+\end{theorem}
+\begin{proof}
+Resuming the proof of Theorem~\ref{theo:stochgradB} from this point~\eqref{eq:neededlater} but with each $\alpha$ swapped for $\alpha_t$ and taking expectation we have that
+\end{proof}
+ \begin{eqnarray}
+\E{\norm{w^{t+1}-w^*}_2^2} 
+& \overset{\eqref{eq:neededlater}}{\leq} & 
+(1-\alpha_t \mu)\E{\norm{w^{t}-w^*}_2^2} + \alpha_t^2 B^2 \nonumber \\
+& =& \left(1- \frac{1}{t} \right)\E{\norm{w^{t}-w^*}_2^2} + \frac{B^2}{t^2 \mu^2 }.
+\end{eqnarray}
+We have from the above that  $\E{\norm{w^{t+1}-w^*}_2^2}  \leq 4\frac{B^2}{t^2 \mu^2 }$ for $t=1.$ Now from induction using $t=1$ as the base case we have that 
+ \begin{eqnarray*}
+\E{\norm{w^{t+1}-w^*}_2^2} &\leq &\left(1- \frac{1}{t} \right)4\frac{B^2}{t^2 \mu^2 } + \frac{B^2}{t^2 \mu^2 } \\
+& \leq &\frac{B^2}{t^2 \mu^2 } \left(4- \frac{4}{t} \right) \quad \leq \quad \frac{B^2}{t^2 \mu^2 }.\hfill \qed
+\end{eqnarray*}
+\rob{This is the much weaker $O(1/t^2)$ result! Need to strengthen base hypothesis.}
+\section{Proximal gradient descent}
+We now add a bit more structure and consider the minimization of the sum of two objective functions
+\begin{equation}
+x^* = \arg\min_{x \in \R^d} f(x)+g(x).
+\end{equation}
+
+
+
+
